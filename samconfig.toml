@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "sam-pytube"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1xlbqer5hmsn3"
+s3_prefix = "sam-pytube"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
