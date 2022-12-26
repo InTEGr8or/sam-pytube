@@ -9,6 +9,9 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
+            "args": [
+                "{\"videoUrl\": \"https://www.youtube.com/watch?v=ulBDEDP1rCU\"}"
+            ],
             "console": "integratedTerminal",
             "justMyCode": true
         }

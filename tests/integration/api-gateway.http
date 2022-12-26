@@ -1,6 +1,2 @@
-POST https://u3pnwc87x8.execute-api.us-east-1.amazonaws.com/Prod/hello/ 
-
-{ 
-    "statusCode": 200,
-    "body": "Hello, World!",
-    "videoUrl": "https://www.youtube.com/watch?v=W9PZ6znosMk" }
+GET https://vtup5lk57c.execute-api.us-east-1.amazonaws.com/Prod/hello 
+?videoUrl=https://www.youtube.com/watch?v=W9PZ6znosMk
