@@ -18,8 +18,12 @@ Resources:
       CodeUri: hello_world/
       Handler: app.lambda_handler
       Runtime: python3.9
+      MemorySize: 512
+      Timeout: 180
       Policies: 
       - AmazonS3FullAccess
+      - AmazonDynamoDBFullAccess 
+      
       Architectures:
         - x86_64
       Events:

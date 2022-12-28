@@ -1,2 +1,2 @@
-GET https://vtup5lk57c.execute-api.us-east-1.amazonaws.com/Prod/hello 
-?videoUrl=https://www.youtube.com/watch?v=W9PZ6znosMk
+GET https://975a50bu4f.execute-api.us-east-1.amazonaws.com/Prod/hello/ 
+?videoUrl=https://youtu.be/Hfn_m66XTQQ
