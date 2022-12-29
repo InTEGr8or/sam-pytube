@@ -15,7 +15,7 @@ S3 = boto3.client('s3', region_name="us-east-1")
 dyndb = boto3.client('dynamodb', region_name="us-east-1")
 ssm = boto3.client('ssm', region_name="us-east-1")
 
-configs = ssm.get_parameter(Name="/civilton/youtube/config", WithDecryption=False)['Parameter']['Value'].split(",")
+configs = ssm.get_parameter(Name="/civilton/youtube/config", WithDecryption=True)['Parameter']['Value'].split(",")
 
 BUCKET_NAME = [config for config in configs if 'bucket_name' in config][0].split("=")[1]
 URL_EXPIRATION = [config for config in configs if 'url_expiration' in config][0].split("=")[1]
