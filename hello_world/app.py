@@ -23,8 +23,6 @@ CHAT_GPT_TOKEN = [config for config in configs if 'CHAT_GPT_TOKEN' in config][0]
 MAX_TOKENS = int([config for config in configs if 'max_tokens' in config][0].split("=")[1])
 TEMPERATURE = float([config for config in configs if 'temperature' in config][0].split("=")[1])
 
-openai.api_key = os.environ['CHAT_GPT_TOKEN']
-
 # Logger writes to CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
