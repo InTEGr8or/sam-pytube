@@ -23,6 +23,7 @@ Resources:
       Policies: 
       - AmazonS3FullAccess
       - AmazonDynamoDBFullAccess 
+      - AmazonSSMReadOnlyAccess
       
       Architectures:
         - x86_64

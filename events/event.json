@@ -3,5 +3,6 @@
   "resource": "/hello",
   "path": "/hello",
   "httpMethod": "GET",
-  "videoUrl": "https://youtu.be/rRIdAMET_OQ"
+  "videoUrl": "https://youtu.be/oqamdXxdfSA",
+  "replaceSummary": "false"
 }
