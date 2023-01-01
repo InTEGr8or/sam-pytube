@@ -380,11 +380,11 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200 if videoDataResult and videoDataResult.statusCode == 200 else 400,
-        "body": """{videoDataResult.message}
+        "body": '''{message}
         Presigned VIDEO URL: {video_presigned_url}
         Presigned AUDIO URL: {audio_presigned_url}
         SUMMARY OF VIDEO: {summary}
-        """ if videoDataResult and videoDataResult.statusCode == 200 else  videoDataResult.error if videoDataResult else "Error getting video"
+        '''.format(message=videoDataResult.message, video_presigned_url=video_presigned_url, audio_presigned_url=audio_presigned_url, summary=summary) if videoDataResult and videoDataResult.statusCode == 200 else  videoDataResult.error if videoDataResult else "Error getting video"
    }
 
 if len(sys.argv) > 1:
