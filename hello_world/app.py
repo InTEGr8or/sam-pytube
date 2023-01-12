@@ -2,7 +2,7 @@ import json
 import io
 from datetime import datetime
 from pytube import YouTube
-import boto3
+from boto3 import Session
 import sys
 import logging
 import os.path
@@ -11,9 +11,10 @@ import xmltodict
 from functools import reduce
 import openai
 
-S3 = boto3.client('s3', region_name="us-east-1")
-dyndb = boto3.client('dynamodb', region_name="us-east-1")
-ssm = boto3.client('ssm', region_name="us-east-1")
+session = Session(region_name="us-east-1")
+S3 = session.client('s3')
+dyndb = session.client('dynamodb')
+ssm = session.client('ssm')
 
 configs = ssm.get_parameter(Name="/civilton/youtube/config", WithDecryption=True)['Parameter']['Value'].split(",")
 
@@ -32,7 +33,7 @@ openai.api_key = CHAT_GPT_TOKEN
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-vidIdPattern = re.compile(r"((?<=watch\?v=).*|(?<=.be\/)(.*))")
+vidIdPattern = re.compile(r"((?<=watch\?v=).*|(?<=.be\/)(.*))|(?<=shorts\/)(.*)(?=(\?|/))?")
 
 class Result:
     def __init__(self, statusCode, body=None, message=None, error=None):
@@ -47,7 +48,14 @@ class Property:
         self.value = value
 
 def split_text(text: str, max_chars: int=2049) -> list:
+    """Splits a string, keeping words together.
 
+    Args:
+        text: The string to split.
+        max_chars: The maximum number of characters per string (default 2049).
+    Returns:
+        A list of strings, each with a maximum of max_chars characters.
+    """
     words = text.split()
     groups = []
     current_group = ""
@@ -62,26 +70,38 @@ def split_text(text: str, max_chars: int=2049) -> list:
     return groups
 
 def get_summary_stream(text: str, max_tokens, temperature=0.9, engine="davinci") -> str:
-    # Use the openai.Completion.stream() method to stream the text to the GPT-3 model
+    """
+    Use the openai.Completion.stream() method to stream the text to the GPT-3 model.
+    """
     completion = openai.Completion.stream(
         model=engine,
         temperature=temperature, # controls the creativity of the summary
         max_tokens=max_tokens, # maximum number of tokens in the summary
     )
 
-    # Send the text to the GPT-3 model in chunks of 2049 tokens or fewer
+    """
+    Send the text to the GPT-3 model in chunks of 2049 tokens or fewer.
+    """
     text = f"Split into sentences & summarize the following text in {max_tokens} tokens: \n\n[{text}]"
     for i in range(0, len(text), MAX_REQUEST_TOKENS):
         chunk = text[i:i+MAX_REQUEST_TOKENS]
         completion.add_input(prompt=chunk)
 
-    # Get the summary from the GPT-3 model
+    """
+    Get the summary from the GPT-3 model.
+    """
     summary = completion.get_response()["choices"][0]["text"]
 
 def get_summary_response(text: str, max_tokens, temperature=0.9, engine="davinci") -> str:
     # TODO: WRONG! Summary must be split by words, or better yet, sentences
 
+    # If the text is too long, split it into chunks and summarize each chunk
+    # 83 is the length of the prompt
     chunks = split_text(text, max_chars=(MAX_REQUEST_TOKENS - 83))
+    # If the text is too short, return an empty string
+    # Prevents divide by zero error
+    if len(chunks) == 0:
+        return ""
     max_summary_tokens = int(max_tokens / len(chunks))
     summaries = []
     for chunk in chunks:
@@ -204,7 +224,8 @@ def is_head_object(Bucket, Key):
     try:
         S3.head_object(Bucket=Bucket, Key=Key)
         return True
-    except:
+    except Exception as e:
+        print(e)
         return False
 
 def get_audio (videoUrl) -> Result:
@@ -238,7 +259,8 @@ def get_video (videoUrl) -> Result:
         logger.error("GET_VIDEO_ERROR")
         logger.error(e)
         return Result(500, error="Error getting video")
-
+    logger.info("GET_VIDEO")
+    logger.info(f"FileSIZE: {yt.filesize}")
     buf = io.BytesIO()
     try:
         yt.stream_to_buffer(buf)
@@ -248,14 +270,14 @@ def get_video (videoUrl) -> Result:
     except Exception as e:
         logger.info("GET_VIDEO_ERROR - Buffer read error")
         logger.error(e)
-        return Result(500, error="Buffer read error")
+        return Result(500, error="Buffer read error", message="Video file size: " + str(yt.filesize))
 
 def lambda_handler(event, context):
     logger.info("HANDLER EVENT:")
     logger.info(event)
 
     # Get Video URL
-    # It will be in different places depending on how the lambda is invoked
+    # The videoUrl will be in different paths in the event jsonpath depending on how the lambda is invoked
     replace_summary = True if('replaceSummary' in event and event['replaceSummary'] == 'true') else False
     if('videoUrl' in event): # Lambda test invoke
         videoUrl = event['videoUrl']
@@ -277,7 +299,7 @@ def lambda_handler(event, context):
 
     # Write captions to S3
     if len(xml_captions) > 30:
-        captionFile = f"/{videoId}/{videoId}_captions.xml"
+        captionFile = f"{videoId}/{videoId}_captions.xml"
         if not is_head_object(Bucket=BUCKET_NAME, Key=captionFile):
             S3.put_object(Bucket=BUCKET_NAME, Key=captionFile, Body=xml_captions)
 
@@ -316,8 +338,8 @@ def lambda_handler(event, context):
     if len(xml_captions) > 30:
         logger.info("## CCONVERT XML CAPTIONS TO CSV AND WRITING CSV")
         csv_captions, txt_captions = xml_to_csv(xml_captions)
-        captionFile = f"/{videoId}/{videoId}_captions.csv"
-        summaryFile = f"/{videoId}/{videoId}_summary.txt"
+        captionFile = f"{videoId}/{videoId}_captions.csv"
+        summaryFile = f"{videoId}/{videoId}_summary.txt"
 
         if not is_head_object(Bucket=BUCKET_NAME, Key=captionFile):
             S3.put_object(Bucket=BUCKET_NAME, Key=captionFile, Body=csv_captions)
@@ -334,7 +356,7 @@ def lambda_handler(event, context):
 
     # Get Video
     logger.info("## GETTING VIDEO AND WRITING Video File")
-    videoFile = f"/{videoId}/{videoId}_videos.mp4"
+    videoFile = f"{videoId}/{videoId}_videos.mp4"
 
     # Check if video already exists
     if is_head_object(Bucket=BUCKET_NAME, Key=videoFile):
@@ -351,7 +373,7 @@ def lambda_handler(event, context):
 
     # Get audio
     logger.info("## GETTING audio AND WRITING audio File")
-    audioFile = f"/{videoId}/{videoId}_audio.mp3"
+    audioFile = f"{videoId}/{videoId}_audio.mp3"
 
     # Check if audio already exists
     if is_head_object(Bucket=BUCKET_NAME, Key=audioFile):
